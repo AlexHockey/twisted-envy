@@ -46,7 +46,12 @@ def make_nonblocking(func):
 
 def sleep(t):
     g = greenlet.getcurrent()
-    reactor.callLater(t, g.switch)
+
+    def callback():
+        g.parent = greenlet.getcurrent()
+        g.switch()
+
+    reactor.callLater(t, callback)
     g.parent.switch()
 
 
@@ -144,6 +149,8 @@ def _wait_one(d):
 
     @_ignore_greenlet_exit
     def callback(result):
+        g.parent = greenlet.getcurrent()
+
         if not active:
             rc = g.switch(result)
         else:
@@ -151,6 +158,8 @@ def _wait_one(d):
 
     @_ignore_greenlet_exit
     def errback(failure):
+        g.parent = greenlet.getcurrent()
+
         typ, val, tb = failure.type, failure.value, failure.tb
         if not active:
             g.throw(typ, val, tb)
